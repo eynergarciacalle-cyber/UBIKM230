@@ -461,22 +461,41 @@
     });
 
     // --- NUEVO: Función para enviar a la nube con soporte offline ---
-async function syncToCloud(data) {
+async function syncToCloud(itemEditado) { // Ahora recibe solo un item
     try {
         await fetch(URL_GOOGLE, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify(data)
+            body: JSON.stringify(itemEditado) // Enviamos solo el cambio
         });
-        console.log("Sincronizado con Google Sheets");
+        console.log("Cambio guardado en la nube");
         return true;
     } catch (error) {
-        console.log("Sin conexión. Se sincronizará al recuperar internet.");
         localStorage.setItem('pending_sync', 'true');
         return false;
     }
 }
 
+// Actualiza la llamada dentro de updateLocation
+function updateLocation(code, newLocation) {
+    const codeToFind = String(code).trim().toLowerCase();
+    let idx = data2.findIndex(i => String(i.codigo).trim().toLowerCase() === codeToFind);
+    
+    let itemParaEnviar;
+    if (idx !== -1) {
+        data2[idx].ubicacion = newLocation;
+        itemParaEnviar = data2[idx];
+    } else {
+        const item1 = data1.find(i => String(i.codigo).trim().toLowerCase() === codeToFind);
+        if (!item1) return false;
+        itemParaEnviar = { ...item1, ubicacion: newLocation };
+        data2.push(itemParaEnviar);
+    }
+    
+    persistData2();
+    syncToCloud(itemParaEnviar); // ENVIAMOS SOLO EL ITEM EDITADO
+    return true;
+}
 // --- ACTUALIZADO: Función de localización con auto-guardado ---
 function updateLocation(code, newLocation) {
     const codeToFind = String(code).trim().toLowerCase();
@@ -738,4 +757,3 @@ window.addEventListener('online', () => {
 </script>
 </body>
 </html>
-
