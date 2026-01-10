@@ -611,32 +611,56 @@ function updateLocation(code, newLocation) {
 
     printButton.addEventListener('click', ()=>window.print());
 
-   window.addEventListener('load', async () => {
-    // 1. Cargar DB1 desde Google Sheets automáticamente
-    status1.textContent = "Sincronizando con Google Sheets...";
+    window.addEventListener('load', async () => {
+    status1.textContent = "Sincronizando DB1...";
+    status2.textContent = "Sincronizando DB2...";
+    
     try {
+        // Pedir datos a Google Sheets
         const res = await fetch(URL_GOOGLE);
-        const filas = await res.json();
-        // Saltamos la fila 1 (encabezados) y mapeamos
-        data1 = filas.slice(1).map(f => ({
-            codigo: String(f[0]).trim(),
-            descripcion: f[1] || '',
-            undm: f[2] || ''
-        }));
-        localStorage.setItem('db1_data', JSON.stringify(data1));
-        status1.textContent = "DB1 Sincronizada desde la nube.";
-        status1.className = "text-sm text-green-400 font-bold";
-    } catch (e) {
-        status1.textContent = "Error de conexión. Usando copia local.";
-    }
+        const json = await res.json();
+        
+        // --- Cargar DB1 (Descripciones) ---
+        if (json.db1 && json.db1.length > 1) {
+            data1 = json.db1.slice(1).map(f => ({
+                codigo: String(f[0]).trim(),
+                descripcion: f[1] || '',
+                undm: f[2] || ''
+            }));
+            localStorage.setItem('db1_data', JSON.stringify(data1));
+            status1.textContent = "DB1 Sincronizada desde la nube.";
+            status1.className = "text-sm text-green-400 font-bold";
+        }
 
-    // 2. Cargar DB2 guardada anteriormente
-    const saved2 = localStorage.getItem('db2_data');
-    if (saved2) {
-        data2 = JSON.parse(saved2);
-        status2.textContent = "Ubicaciones locales cargadas.";
-        saveButton.classList.remove('hidden');
-        saveButton.disabled = false;
+        // --- Cargar DB2 (Ubicaciones) ---
+        if (json.db2 && json.db2.length > 1) {
+            data2 = json.db2.slice(1).map(f => ({
+                codigo: String(f[0]).trim(),
+                descripcion: f[1] || '',
+                undm: f[2] || '',
+                ubicacion: f[3] || ''
+            }));
+            localStorage.setItem('db2_data', JSON.stringify(data2));
+            status2.textContent = "DB2 Sincronizada desde la nube.";
+            status2.className = "text-sm text-green-400 font-bold";
+            
+            // Mostrar botones
+            saveButton.classList.remove('hidden');
+            saveOnlyButton.classList.remove('hidden');
+            saveButton.disabled = false;
+        } else {
+            status2.textContent = "DB2 vacía en la nube.";
+        }
+
+    } catch (e) {
+        console.error("Error cargando desde nube, usando copia local:", e);
+        // Si falla internet, intentar cargar lo que esté guardado en el navegador
+        const local1 = localStorage.getItem('db1_data');
+        if(local1) data1 = JSON.parse(local1);
+        const local2 = localStorage.getItem('db2_data');
+        if(local2) data2 = JSON.parse(local2);
+        status1.textContent = "Cargada copia local (Offline).";
+        status2.textContent = "Cargada copia local (Offline).";
     }
 });
 
@@ -714,6 +738,3 @@ window.addEventListener('online', () => {
 </script>
 </body>
 </html>
-
-
-
