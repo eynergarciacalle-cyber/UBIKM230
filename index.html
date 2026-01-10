@@ -342,21 +342,20 @@
 
     // --- PEGA ESTO AQUÍ ---
     async function syncToCloud(itemEditado) {
-        console.log("Intentando enviar a la nube:", itemEditado.codigo);
-        try {
-            await fetch(URL_GOOGLE, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemEditado)
-            });
-            console.log("Dato enviado a Google");
-            return true;
-        } catch (error) {
-            console.error("Error de red:", error);
-            return false;
-        }
+    try {
+        await fetch(URLGOOGLE, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(itemEditado)
+        });
+        console.log("Enviado a la nube");
+        return true;
+    } catch (error) {
+        console.error("Error de red", error);
+        return false;
     }
+}
 
     function handleFile(event, dataTarget, statusElement, fileNumber) {
         const file = event.target.files[0];
@@ -497,26 +496,6 @@ async function syncToCloud(itemEditado) {
 
 // Actualiza la llamada dentro de updateLocation
 function updateLocation(code, newLocation) {
-        const codeToFind = String(code).trim().toLowerCase();
-        let idx = data2.findIndex(i => String(i.codigo).trim().toLowerCase() === codeToFind);
-        
-        let itemParaEnviar;
-        if (idx !== -1) {
-            data2[idx].ubicacion = newLocation;
-            itemParaEnviar = data2[idx];
-        } else {
-            const item1 = data1.find(i => String(i.codigo).trim().toLowerCase() === codeToFind);
-            if (!item1) return false;
-            itemParaEnviar = { ...item1, ubicacion: newLocation };
-            data2.push(itemParaEnviar);
-        }
-        
-        persistData2(); // Guarda local
-        syncToCloud(itemParaEnviar); // ENVÍA A LA NUBE
-        return true;
-    }
-// --- ACTUALIZADO: Función de localización con auto-guardado ---
-function updateLocation(code, newLocation) {
     const codeToFind = String(code).trim().toLowerCase();
     let idx = data2.findIndex(i => String(i.codigo).trim().toLowerCase() === codeToFind);
     
@@ -524,12 +503,14 @@ function updateLocation(code, newLocation) {
         data2[idx].ubicacion = newLocation;
     } else {
         const item1 = data1.find(i => String(i.codigo).trim().toLowerCase() === codeToFind);
-        if (!item1) return false;
-        data2.push({ ...item1, ubicacion: newLocation });
+        data2.push({
+            codigo: code,
+            descripcion: item1 ? item1.descripcion : "",
+            undm: item1 ? item1.undm : "",
+            ubicacion: newLocation
+        });
     }
-    
-    persistData2(); // Guarda en la memoria del navegador (copia local)
-    syncToCloud(data2); // ENVÍO AUTOMÁTICO A GOOGLE SHEETS
+    persistData2(); // Guarda en memoria del navegador
     return true;
 }
 
@@ -602,22 +583,40 @@ function updateLocation(code, newLocation) {
         },0);
     });
 
-    printableArea.addEventListener('click', e=>{
-        if (e.target.classList.contains('bulk-save-btn') || e.target.closest('.bulk-save-btn')){
-            const btn = e.target.closest('.bulk-save-btn');
-            const code = btn.dataset.code;
-            const input = btn.parentElement.querySelector(`input[data-code="${code}"]`);
-            if(!input) return;
-            const newLoc = input.value.trim();
-            if(!newLoc){ alert('Por favor, ingrese una ubicación para el código '+code); return; }
-            if(updateLocation(code,newLoc)){
-                const origHTML = btn.innerHTML, origClass = btn.className;
-                btn.innerHTML = '<span>¡Guardado!</span>';
-                btn.classList.remove('btn-secondary');btn.classList.add('bg-green-600','cursor-not-allowed');
-                setTimeout(()=>{ btn.innerHTML=origHTML;btn.className=origClass; },1000);
-            } else alert('No se pudo guardar la ubicación para el código '+code);
-        }
-    });
+printableArea.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.bulk-save-btn');
+    if (!btn) return;
+
+    const code = btn.dataset.code;
+    const row = btn.closest('tr');
+    const input = row.querySelector('input[data-code]');
+    const newLoc = input.value.trim();
+
+    if (!newLoc) { alert("Ingrese ubicación"); return; }
+
+    // Buscamos datos para enviar
+    const item1 = data1.find(i => String(i.codigo).trim().toLowerCase() === code.toLowerCase());
+    const item2 = data2.find(i => String(i.codigo).trim().toLowerCase() === code.toLowerCase());
+    
+    const datos = {
+        codigo: code,
+        descripcion: item1 ? item1.descripcion : (item2 ? item2.descripcion : ""),
+        undm: item1 ? item1.undm : (item2 ? item2.undm : ""),
+        ubicacion: newLoc
+    };
+
+    updateLocation(code, newLoc); // Guarda local
+    const ok = await syncToCloud(datos); // Envía a Google
+
+    // Cambio visual del botón
+    const origText = btn.innerHTML;
+    btn.innerHTML = "<span>¡Listo!</span>";
+    btn.classList.add('bg-green-600');
+    setTimeout(() => {
+        btn.innerHTML = origText;
+        btn.classList.remove('bg-green-600');
+    }, 2000);
+});
 
     function clearManualSearchAndReport(){
         bulkSearchInput.value='';quantityInput.value='';
@@ -776,6 +775,3 @@ window.addEventListener('online', () => {
 </script>
 </body>
 </html>
-
-
-
