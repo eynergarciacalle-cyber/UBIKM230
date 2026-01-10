@@ -329,7 +329,7 @@
     });
     applyTheme(localStorage.getItem('theme') || 'dark');
 
-    function persistData2() {
+   function persistData2() {
         if (data2.length > 0) {
             localStorage.setItem('db2_data', JSON.stringify(data2));
             localStorage.setItem('db2_filename', db2_filename || 'base_de_datos_actualizada.xlsx');
@@ -337,6 +337,24 @@
             saveOnlyButton.disabled = false;
             saveButton.classList.remove('hidden');
             saveOnlyButton.classList.remove('hidden');
+        }
+    }
+
+    // --- PEGA ESTO AQUÍ ---
+    async function syncToCloud(itemEditado) {
+        console.log("Intentando enviar a la nube:", itemEditado.codigo);
+        try {
+            await fetch(URL_GOOGLE, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(itemEditado)
+            });
+            console.log("Dato enviado a Google");
+            return true;
+        } catch (error) {
+            console.error("Error de red:", error);
+            return false;
         }
     }
 
@@ -479,24 +497,24 @@ async function syncToCloud(itemEditado) {
 
 // Actualiza la llamada dentro de updateLocation
 function updateLocation(code, newLocation) {
-    const codeToFind = String(code).trim().toLowerCase();
-    let idx = data2.findIndex(i => String(i.codigo).trim().toLowerCase() === codeToFind);
-    
-    let itemParaEnviar;
-    if (idx !== -1) {
-        data2[idx].ubicacion = newLocation;
-        itemParaEnviar = data2[idx];
-    } else {
-        const item1 = data1.find(i => String(i.codigo).trim().toLowerCase() === codeToFind);
-        if (!item1) return false;
-        itemParaEnviar = { ...item1, ubicacion: newLocation };
-        data2.push(itemParaEnviar);
+        const codeToFind = String(code).trim().toLowerCase();
+        let idx = data2.findIndex(i => String(i.codigo).trim().toLowerCase() === codeToFind);
+        
+        let itemParaEnviar;
+        if (idx !== -1) {
+            data2[idx].ubicacion = newLocation;
+            itemParaEnviar = data2[idx];
+        } else {
+            const item1 = data1.find(i => String(i.codigo).trim().toLowerCase() === codeToFind);
+            if (!item1) return false;
+            itemParaEnviar = { ...item1, ubicacion: newLocation };
+            data2.push(itemParaEnviar);
+        }
+        
+        persistData2(); // Guarda local
+        syncToCloud(itemParaEnviar); // ENVÍA A LA NUBE
+        return true;
     }
-    
-    persistData2();
-    syncToCloud(itemParaEnviar); // Solo envía el producto que tocaste
-    return true;
-}
 // --- ACTUALIZADO: Función de localización con auto-guardado ---
 function updateLocation(code, newLocation) {
     const codeToFind = String(code).trim().toLowerCase();
