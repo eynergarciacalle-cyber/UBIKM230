@@ -461,14 +461,15 @@
     });
 
     // --- NUEVO: Función para enviar a la nube con soporte offline ---
-async function syncToCloud(itemEditado) { // Ahora recibe solo un item
+async function syncToCloud(itemEditado) {
     try {
         await fetch(URL_GOOGLE, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify(itemEditado) // Enviamos solo el cambio
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(itemEditado)
         });
-        console.log("Cambio guardado en la nube");
+        console.log("Sincronizado item:", itemEditado.codigo);
         return true;
     } catch (error) {
         localStorage.setItem('pending_sync', 'true');
@@ -493,7 +494,7 @@ function updateLocation(code, newLocation) {
     }
     
     persistData2();
-    syncToCloud(itemParaEnviar); // ENVIAMOS SOLO EL ITEM EDITADO
+    syncToCloud(itemParaEnviar); // Solo envía el producto que tocaste
     return true;
 }
 // --- ACTUALIZADO: Función de localización con auto-guardado ---
